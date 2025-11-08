@@ -1,0 +1,28 @@
+[project]
+name = "project-2-baranova-25-555"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "BaranovaaPolinaa",email = "SweetDeer.1@yandex.ru"}
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+]
+
+[tool.poetry]
+name = ""
+version = "0.1.0"
+description = ""
+authors = ["BaranovaaPolinaa <SweetDeer.1@yandex.ru>"]
+readme = "README.md"
+packages = [
+    { include = "src" },
+]
+
+[tool.poetry.scripts]
+project = "src.primitive_db.main:main"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
