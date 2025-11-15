@@ -1,6 +1,6 @@
-import os
 import shlex
 
+from src.primitive_db.constants import META_FILE
 from src.primitive_db.core import (
     create_table,
     delete,
@@ -12,8 +12,6 @@ from src.primitive_db.core import (
     update,
 )
 from src.primitive_db.utils import load_metadata, save_metadata
-
-META_FILE = os.path.join(os.getcwd(), "db_meta.json")
 
 
 def print_help():
