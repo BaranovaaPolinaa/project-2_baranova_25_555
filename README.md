@@ -7,7 +7,7 @@
 
 ### Демонстрация процесса
 
-#### !TODO: add the record
+#### [![asciicast](https://asciinema.org/a/eUr6WsQKRzN7sdyDSQxejXa1g.svg)](https://asciinema.org/a/eUr6WsQKRzN7sdyDSQxejXa1g)
 
 ## Запуск проекта на Python
 
