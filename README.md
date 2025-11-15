@@ -156,3 +156,13 @@ make install
 ### Пример работы
 
 #### [![asciicast](https://asciinema.org/a/MUTKl7hRSqxf07BS1xcTCJyYo.svg)](https://asciinema.org/a/MUTKl7hRSqxf07BS1xcTCJyYo)
+
+### Новые возможности
+	1.	Обработка ошибок:
+        Все функции обернуты декоратором handle_db_errors. Он перехватывает    KeyError, ValueError, FileNotFoundError и выводит понятные сообщения пользователю.
+	2.	Подтверждение опасных действий:
+        Функции drop_table и delete обернуты декоратором confirm_action.
+
+### Пример работы
+
+#### [![asciicast](https://asciinema.org/a/6j4SjE79JQiTA0CqInXQKAO1e.svg)](https://asciinema.org/a/6j4SjE79JQiTA0CqInXQKAO1e)
