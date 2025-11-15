@@ -1,3 +1,7 @@
+from prettytable import PrettyTable
+
+from src.primitive_db.utils import load_table_data, save_table_data
+
 VALID_TYPES = {"int", "str", "bool"}
 
 
@@ -58,3 +62,139 @@ def list_tables(metadata):
 
     for name in metadata:
         print(f"- {name}")
+
+
+def insert(metadata, table_name, values):
+    """
+    Добавляет запись в таблицу.
+    Автоматически генерирует ID. Проверяет соответствие типов данных.
+    """
+    if table_name not in metadata:
+        print(f'Ошибка: Таблица "{table_name}" не существует.')
+        return
+
+    columns = metadata[table_name]
+    if len(values) != len(columns) - 1:
+        print("Ошибка: количество значений не соответствует количеству столбцов.")
+        return
+
+    record = {}
+    for (col_name, col_type), val in zip(columns[1:], values):
+        val = str(val).strip('"').strip("'")
+        if col_type == "int":
+            try:
+                record[col_name] = int(val)
+            except ValueError:
+                print(f"Ошибка: {col_name} должен быть int.")
+                return
+        elif col_type == "str":
+            record[col_name] = val
+        elif col_type == "bool":
+            if val.lower() in ("true", "1"):
+                record[col_name] = True
+            elif val.lower() in ("false", "0"):
+                record[col_name] = False
+            else:
+                print(f"Ошибка: {col_name} должен быть bool.")
+                return
+
+    data = load_table_data(table_name)
+    new_id = max((r["ID"] for r in data), default=0) + 1
+    record["ID"] = new_id
+    data.append(record)
+    save_table_data(table_name, data)
+    print(f'Запись с ID={new_id} успешно добавлена в таблицу "{table_name}".')
+
+
+def select(metadata, table_name, where_clause=None):
+    """
+    Выводит записи таблицы. Фильтрует по условию where_clause, если задано.
+    """
+    if table_name not in metadata:
+        print(f'Ошибка: Таблица "{table_name}" не существует.')
+        return
+
+    data = load_table_data(table_name)
+    if where_clause:
+        column, value = where_clause
+        value = str(value).strip('"').strip("'")
+        data = [row for row in data if str(row.get(column)) == value]
+
+    table = PrettyTable()
+    columns = [name for name, _ in metadata[table_name]]
+    table.field_names = columns
+    for row in data:
+        table.add_row([row.get(col) for col in columns])
+    print(table)
+
+
+def update(metadata, table_name, set_clause, where_clause):
+    """
+    Обновляет записи в таблице по условию.
+    """
+    if table_name not in metadata:
+        print(f'Ошибка: Таблица "{table_name}" не существует.')
+        return
+
+    data = load_table_data(table_name)
+    updated_count = 0
+    set_column, set_value = set_clause
+    where_column, where_value = where_clause
+    where_value = str(where_value).strip('"').strip("'")
+    set_value = str(set_value).strip('"').strip("'")
+
+    for row in data:
+        if str(row.get(where_column)) == where_value:
+            row[set_column] = set_value
+            updated_count += 1
+            print(
+                f'Запись с ID={row["ID"]} в таблице "{table_name}" успешно обновлена.'
+            )
+
+    if updated_count == 0:
+        print(f'Записей, соответствующих условию, не найдено в таблице "{table_name}".')
+
+    save_table_data(table_name, data)
+
+
+def delete(metadata, table_name, where_clause):
+    """
+    Удаляет записи из таблицы по условию.
+    """
+    if table_name not in metadata:
+        print(f'Ошибка: Таблица "{table_name}" не существует.')
+        return
+
+    data = load_table_data(table_name)
+    column, value = where_clause
+    value = str(value).strip('"').strip("'")
+
+    to_delete = [row for row in data if str(row.get(column)) == value]
+
+    if not to_delete:
+        print(f'Записей, соответствующих условию, не найдено в таблице "{table_name}".')
+        return
+
+    for row in to_delete:
+        print(f'Запись с ID={row["ID"]} успешно удалена из таблицы "{table_name}".')
+
+    data = [row for row in data if str(row.get(column)) != value]
+    save_table_data(table_name, data)
+
+
+def info(metadata, table_name):
+    """
+    Выводит информацию о таблице: столбцы и количество записей.
+    """
+    if table_name not in metadata:
+        print(f'Ошибка: Таблица "{table_name}" не существует.')
+        return
+
+    data = load_table_data(table_name)
+    print(
+        f"Таблица: {table_name}\n"
+        f"Столбцы: {', '.join(
+            f'{col_name}:{col_type}' for col_name, col_type in metadata[table_name]
+        )}\n"
+        f"Количество записей: {len(data)}"
+    )
