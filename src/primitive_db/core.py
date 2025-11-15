@@ -1,5 +1,6 @@
 from prettytable import PrettyTable
 
+from src.primitive_db.constants import VALID_TYPES
 from src.primitive_db.decorators import (
     confirm_action,
     create_cacher,
@@ -7,8 +8,6 @@ from src.primitive_db.decorators import (
     log_time,
 )
 from src.primitive_db.utils import load_table_data, save_table_data
-
-VALID_TYPES = {"int", "str", "bool"}
 
 cacher = create_cacher()
 
