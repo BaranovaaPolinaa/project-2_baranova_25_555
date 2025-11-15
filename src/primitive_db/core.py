@@ -111,7 +111,7 @@ def insert(metadata, table_name, values):
                 return
 
     data = load_table_data(table_name)
-    new_id = max((r["ID"] for r in data), default=0) + 1
+    new_id = max((recors["ID"] for record in data), default=0) + 1
     record["ID"] = new_id
     data.append(record)
     save_table_data(table_name, data)
