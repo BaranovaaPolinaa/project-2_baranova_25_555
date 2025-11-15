@@ -1,13 +1,22 @@
 from prettytable import PrettyTable
 
+from src.primitive_db.decorators import (
+    confirm_action,
+    create_cacher,
+    handle_db_errors,
+    log_time,
+)
 from src.primitive_db.utils import load_table_data, save_table_data
 
 VALID_TYPES = {"int", "str", "bool"}
 
+cacher = create_cacher()
 
+
+@handle_db_errors
 def create_table(metadata, table_name, columns):
     """
-    Создаёт таблицу.
+    Создаёт таблицу с заданными столбцами.
     """
     if table_name in metadata:
         print(f'Ошибка: Таблица "{table_name}" уже существует.')
@@ -39,6 +48,8 @@ def create_table(metadata, table_name, columns):
     return metadata
 
 
+@handle_db_errors
+@confirm_action("Удаление таблицы")
 def drop_table(metadata, table_name):
     """
     Удаляет таблицу.
@@ -64,6 +75,8 @@ def list_tables(metadata):
         print(f"- {name}")
 
 
+@handle_db_errors
+@log_time
 def insert(metadata, table_name, values):
     """
     Добавляет запись в таблицу.
@@ -106,6 +119,8 @@ def insert(metadata, table_name, values):
     print(f'Запись с ID={new_id} успешно добавлена в таблицу "{table_name}".')
 
 
+@handle_db_errors
+@log_time
 def select(metadata, table_name, where_clause=None):
     """
     Выводит записи таблицы. Фильтрует по условию where_clause, если задано.
@@ -114,11 +129,16 @@ def select(metadata, table_name, where_clause=None):
         print(f'Ошибка: Таблица "{table_name}" не существует.')
         return
 
-    data = load_table_data(table_name)
-    if where_clause:
-        column, value = where_clause
-        value = str(value).strip('"').strip("'")
-        data = [row for row in data if str(row.get(column)) == value]
+    def get_data():
+        data = load_table_data(table_name)
+        if where_clause:
+            column, value = where_clause
+            value = str(value).strip('"').strip("'")
+            table_data = [row for row in data if str(row.get(column)) == value]
+        return table_data
+
+    key = (table_name, str(where_clause))
+    data = cacher(key, get_data)
 
     table = PrettyTable()
     columns = [name for name, _ in metadata[table_name]]
@@ -128,6 +148,7 @@ def select(metadata, table_name, where_clause=None):
     print(table)
 
 
+@handle_db_errors
 def update(metadata, table_name, set_clause, where_clause):
     """
     Обновляет записи в таблице по условию.
@@ -137,12 +158,12 @@ def update(metadata, table_name, set_clause, where_clause):
         return
 
     data = load_table_data(table_name)
-    updated_count = 0
     set_column, set_value = set_clause
     where_column, where_value = where_clause
     where_value = str(where_value).strip('"').strip("'")
     set_value = str(set_value).strip('"').strip("'")
 
+    updated_count = 0
     for row in data:
         if str(row.get(where_column)) == where_value:
             row[set_column] = set_value
@@ -157,6 +178,8 @@ def update(metadata, table_name, set_clause, where_clause):
     save_table_data(table_name, data)
 
 
+@handle_db_errors
+@confirm_action("Удаление записей")
 def delete(metadata, table_name, where_clause):
     """
     Удаляет записи из таблицы по условию.
@@ -182,6 +205,7 @@ def delete(metadata, table_name, where_clause):
     save_table_data(table_name, data)
 
 
+@handle_db_errors
 def info(metadata, table_name):
     """
     Выводит информацию о таблице: столбцы и количество записей.
@@ -191,10 +215,11 @@ def info(metadata, table_name):
         return
 
     data = load_table_data(table_name)
+    columns_str = ", ".join(
+    f"{col_name}:{col_type}" for col_name, col_type in metadata[table_name]
+    )
     print(
         f"Таблица: {table_name}\n"
-        f"Столбцы: {', '.join(
-            f'{col_name}:{col_type}' for col_name, col_type in metadata[table_name]
-        )}\n"
+        f"Столбцы: {columns_str}\n"
         f"Количество записей: {len(data)}"
     )
