@@ -1,22 +1,25 @@
-def parse_where(tokens):
-    """
-    Парсит условие WHERE из SQL команды.
-    """
-    if len(tokens) != 3 or tokens[1] != "=":
-        return None
-    col, val = tokens[0], tokens[2]
-    val = val.strip('"').strip("'") 
-    
-    return col, val
+from typing import Optional, Sequence, Tuple
 
 
-def parse_set(tokens):
+def _parse_binary(tokens: Sequence[str]) -> Optional[Tuple[str, str]]:
     """
-    Парсит часть команды вида SET <столбец> = <значение>.
+    Общий парсер для "<column> = <value>".
+    Возвращает (column, value) или None при ошибке.
     """
-    if len(tokens) != 3 or tokens[1] != "=":
+    if len(tokens) != 3:
         return None
-    col, val = tokens[0], tokens[2]
+    col, op, val = tokens
+    if op != "=":
+        return None
     val = val.strip('"').strip("'")
-    
     return col, val
+
+
+def parse_where(tokens: Sequence[str]) -> Optional[Tuple[str, str]]:
+    """Парсер WHERE."""
+    return _parse_binary(tokens)
+
+
+def parse_set(tokens: Sequence[str]) -> Optional[Tuple[str, str]]:
+    """Парсер SET."""
+    return _parse_binary(tokens)
