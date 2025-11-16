@@ -1,8 +1,9 @@
 import time
 from functools import wraps
+from typing import Callable, Tuple
 
 
-def handle_db_errors(func):
+def handle_db_errors(func: Callable) -> Callable:
     """
     Декоратор для обработки ошибок в функциях работы с базой данных.
     Перехватывает KeyError, ValueError, FileNotFoundError и выводит сообщение.
@@ -10,24 +11,23 @@ def handle_db_errors(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         try:
-            return func(*args, **kwargs)
-        except KeyError as exc:
-            print(f"Ошибка: ключ {exc} не найден.")
-        except ValueError as exc:
-            print(f"Ошибка: неверное значение. {exc}")
-        except FileNotFoundError as exc:
-            print(f"Ошибка: файл не найден. {exc}")
+            result = func(*args, **kwargs)
+            if result is None and args:
+                return args[0]
+            return result
         except Exception as exc:
             print(f"Произошла непредвиденная ошибка: {exc}")
+            return args[0] if args else {}
     return wrapper
 
 
-def confirm_action(action_name):
+def confirm_action(action_name: str) -> Callable:
     """
     Фабрика декораторов для подтверждения опасных операций.
     Перед выполнением функции запрашивает у пользователя подтверждение.
     """
-    def decorator(func):
+
+    def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args, **kwargs):
             confirmation = input(
@@ -35,13 +35,12 @@ def confirm_action(action_name):
             ).strip().lower()
             if confirmation != "y":
                 print(f'Операция "{action_name}" отменена.')
-                return
+                return args[0] if args else {}
             return func(*args, **kwargs)
         return wrapper
     return decorator
 
-
-def log_time(func):
+def log_time(func: Callable) -> Callable:
     """
     Декоратор для измерения времени выполнения функции.
     Выводит время в консоль.
@@ -55,19 +54,27 @@ def log_time(func):
         return result
     return wrapper
 
-
-def create_cacher():
+def create_cacher() -> Tuple[Callable, Callable]:
     """
     Возвращает функцию для кэширования результатов.
     Использует замыкание для хранения кэша в словаре.
     """
     cache = {}
+    table_keys = {}
 
     def cache_result(key, value_func):
         if key in cache:
             return cache[key]
         result = value_func()
         cache[key] = result
+        table, _ = key
+        table_keys.setdefault(table, []).append(key)
         return result
 
-    return cache_result
+    def invalidate(table):
+        if table in table_keys:
+            for key in table_keys[table]:
+                cache.pop(key, None)
+            table_keys[table] = []
+
+    return cache_result, invalidate

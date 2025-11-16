@@ -1,6 +1,6 @@
 import shlex
 
-from src.primitive_db.constants import META_FILE
+from src.primitive_db.constants import HELP_TEXT, META_FILE
 from src.primitive_db.core import (
     create_table,
     delete,
@@ -11,24 +11,26 @@ from src.primitive_db.core import (
     select,
     update,
 )
+from src.primitive_db.parser import parse_set, parse_where
 from src.primitive_db.utils import load_metadata, save_metadata
 
 
 def print_help():
-    print("\n***Процесс работы с таблицей***")
-    print("Функции:")
-    print("<command> create_table <имя_таблицы> <столбец1:тип> .. - создать таблицу")
-    print("<command> list_tables - показать список всех таблиц")
-    print("<command> drop_table <имя_таблицы> - удалить таблицу")
-    print("\n***Операции с данными***")
-    print("<command> insert into <имя_аблицы> values (...)")
-    print("<command> select from <имя_аблицы> [where ...]")
-    print("<command> update <имя_аблицы> set ... where ...")
-    print("<command> delete from <имя_аблицы> where ...")
-    print("<command> info <имя_аблицы>")
-    print("\n:Общие команды:")
-    print("<command> exit - выход из программы")
-    print("<command> help - справочная информация\n")
+    print(HELP_TEXT)
+
+
+def _safe_split_values(values_str: str):
+    """
+    Берёт строку после ключевого слова values и возвращает список значений.
+    Учитывает кавычки (простейшая обработка).
+    """
+    vs = values_str.strip()
+    if vs.startswith("(") and vs.endswith(")"):
+        inner = vs[1:-1].strip()
+    else:
+        return None
+    parts = [p.strip() for p in inner.split(",")]
+    return parts
 
 
 def run():
@@ -37,7 +39,6 @@ def run():
         metadata = load_metadata(META_FILE)
 
         user_input = input(">>>Введите команду: ").strip()
-
         if not user_input:
             continue
 
@@ -51,14 +52,15 @@ def run():
 
         if command == "exit":
             break
-
-        elif command == "help":
+        if command == "help":
             print_help()
+            continue
 
-        elif command == "list_tables":
+        if command == "list_tables":
             list_tables(metadata)
+            continue
 
-        elif command == "create_table":
+        if command == "create_table":
             if len(args) < 2:
                 print(
                     "Ошибка: нужно указать имя таблицы."
@@ -69,45 +71,50 @@ def run():
             columns = args[2:]
             new_metadata = create_table(metadata, table_name, columns)
             save_metadata(META_FILE, new_metadata)
+            continue
 
-        elif command == "drop_table":
+        if command == "drop_table":
             if len(args) != 2:
                 print("Ошибка: нужно указать имя таблицы. Пример: drop_table users")
                 continue
             table_name = args[1]
             new_metadata = drop_table(metadata, table_name)
             save_metadata(META_FILE, new_metadata)
+            continue
 
-        elif command == "info":
+        if command == "info":
             if len(args) != 2:
                 print("Ошибка: нужно указать имя таблицы. Пример: info users")
                 continue
             table_name = args[1]
             info(metadata, table_name)
+            continue
 
-        elif command == "insert":
-            if (len(args) < 4 or
+        if command == "insert":
+            if (
+                len(args) < 4 or
                 args[1].lower() != "into" or
-                args[3].lower() != "values"):
+                args[3].lower() != "values"
+            ):
                 print(
                     "Ошибка: некорректный синтаксис."
                     "Пример: insert into users values (\"Sergei\", 28, true)"
-                )
+                    )
                 continue
             table_name = args[2]
-            values_str = user_input.split("values", 1)[1].strip()
-            if values_str.startswith("(") and values_str.endswith(")"):
-                values_str = values_str[1:-1]
-            else:
+            split_point = user_input.lower().find("values")
+            values_str = user_input[split_point + len("values") :]
+            values = _safe_split_values(values_str)
+            if values is None:
                 print(
                     "Ошибка: значения должны быть в скобках."
                     "Пример: values (\"Sergei\", 28, true)"
                 )
                 continue
-            values = [v.strip() for v in values_str.split(",")]
             insert(metadata, table_name, values)
+            continue
 
-        elif command == "select":
+        if command == "select":
             if len(args) < 3 or args[1].lower() != "from":
                 print(
                     "Ошибка: некорректный синтаксис."
@@ -115,46 +122,47 @@ def run():
                 )
                 continue
             table_name = args[2]
-            if "where" in args:
-                where_index = args.index("where")
+            if "where" in [a.lower() for a in args]:
+                where_index = next(
+                    i for i, a in enumerate(args) if a.lower() == "where"
+                )
                 where_clause_tokens = args[where_index + 1 : where_index + 4]
                 if len(where_clause_tokens) != 3:
-                    print(
-                        "Ошибка: некорректное условие where."
-                        "Пример: where age = 28"
-                    )
+                    print("Ошибка: некорректное условие where. Пример: where age = 28")
                     continue
-                from src.primitive_db.parser import parse_where
-
                 where_clause = parse_where(where_clause_tokens)
             else:
                 where_clause = None
             select(metadata, table_name, where_clause)
+            continue
 
-        elif command == "update":
-            if len(args) < 6 or args[2].lower() != "set" or "where" not in args:
+        if command == "update":
+            if (
+                len(args) < 6 or
+                args[2].lower() != "set" or
+                "where" not in [a.lower() for a in args]
+            ):
                 print(
                     "Ошибка: некорректный синтаксис."
                     "Пример: update users set age = 29 where name = \"Sergei\""
                 )
                 continue
             table_name = args[1]
-            where_index = args.index("where")
+            where_index = next(i for i, a in enumerate(args) if a.lower() == "where")
             set_tokens = args[3:where_index]
             where_tokens = args[where_index + 1 :]
             if len(set_tokens) != 3 or len(where_tokens) != 3:
                 print("Ошибка: некорректное условие set или where")
                 continue
-            from src.primitive_db.parser import parse_set, parse_where
-
             set_clause = parse_set(set_tokens)
             where_clause = parse_where(where_tokens)
             if not set_clause or not where_clause:
                 print("Ошибка: некорректное условие set или where")
                 continue
             update(metadata, table_name, set_clause, where_clause)
+            continue
 
-        elif command == "delete":
+        if command == "delete":
             if len(args) < 5 or args[1].lower() != "from" or args[3].lower() != "where":
                 print(
                     "Ошибка: некорректный синтаксис."
@@ -166,13 +174,11 @@ def run():
             if len(where_tokens) != 3:
                 print("Ошибка: некорректное условие where")
                 continue
-            from src.primitive_db.parser import parse_where
-
             where_clause = parse_where(where_tokens)
             if not where_clause:
                 print("Ошибка: некорректное условие where")
                 continue
             delete(metadata, table_name, where_clause)
+            continue
 
-        else:
-            print(f"Функции {command} нет. Попробуйте снова.")
+        print(f"Функции {command} нет. Попробуйте снова.")

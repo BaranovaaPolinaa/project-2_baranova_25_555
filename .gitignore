@@ -1,5 +1,8 @@
 dist/
 .venv
 __pycache__/
+.ruff_cache/
 data/
 db_meta.json
+.idea/
+.vscode/
