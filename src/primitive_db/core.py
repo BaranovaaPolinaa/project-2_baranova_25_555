@@ -22,10 +22,10 @@ def _convert_value_by_type(value: str, type_name: str):
     if type_name == "str":
         return value
     if type_name == "bool":
-        vl = value.lower()
-        if vl in ("true", "1"):
+        val = value.lower()
+        if val in ("true", "1"):
             return True
-        if vl in ("false", "0"):
+        if val in ("false", "0"):
             return False
         raise ValueError(f"значение {value} не является bool")
     raise ValueError(f"неподдерживаемый тип {type_name}")
