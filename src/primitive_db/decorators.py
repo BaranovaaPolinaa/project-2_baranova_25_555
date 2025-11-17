@@ -26,7 +26,6 @@ def confirm_action(action_name: str) -> Callable:
     Фабрика декораторов для подтверждения опасных операций.
     Перед выполнением функции запрашивает у пользователя подтверждение.
     """
-
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -39,6 +38,7 @@ def confirm_action(action_name: str) -> Callable:
             return func(*args, **kwargs)
         return wrapper
     return decorator
+
 
 def log_time(func: Callable) -> Callable:
     """
@@ -53,6 +53,7 @@ def log_time(func: Callable) -> Callable:
         print(f"Функция {func.__name__} выполнилась за {end - start:.3f} секунд.")
         return result
     return wrapper
+
 
 def create_cacher() -> Tuple[Callable, Callable]:
     """
